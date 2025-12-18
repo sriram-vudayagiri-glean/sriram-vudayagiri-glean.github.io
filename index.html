@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Session Log Viewer</title>
+    <title>Claude Session Log Viewer</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23CC9B7A'/%3E%3Ctext x='50' y='70' font-size='60' font-family='Arial, sans-serif' font-weight='bold' text-anchor='middle' fill='white'%3EC%3C/text%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -64,9 +65,15 @@
     <!-- Header -->
     <header class="bg-white p-6 rounded-xl shadow-md mb-8 border border-slate-200">
         <div class="flex flex-col md:flex-row justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-900">Session Log Viewer</h1>
-                <p class="text-slate-500 mt-1">View conversation logs with sub-agent categorization and tool use grouping</p>
+            <div class="flex items-center gap-4">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="w-12 h-12 flex-shrink-0">
+                    <rect width="100" height="100" rx="20" fill="#CC9B7A"/>
+                    <text x="50" y="70" font-size="60" font-family="Arial, sans-serif" font-weight="bold" text-anchor="middle" fill="white">C</text>
+                </svg>
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900">Claude Session Log Viewer</h1>
+                    <p class="text-slate-500 mt-1">View conversation logs with sub-agent categorization and tool use grouping</p>
+                </div>
             </div>
         </div>
     </header>
@@ -75,9 +82,20 @@
     <div class="bg-white p-6 rounded-xl shadow-md mb-8 border border-slate-200">
         <h2 class="text-xl font-semibold text-slate-800 mb-4">Load Session Logs</h2>
 
+        <!-- Upload Mode Tabs -->
+        <div class="flex gap-2 mb-4">
+            <button id="fileModeBtn" class="px-4 py-2 rounded-lg font-medium text-sm bg-blue-100 text-blue-700">
+                Single File
+            </button>
+            <button id="dirModeBtn" class="px-4 py-2 rounded-lg font-medium text-sm bg-slate-100 text-slate-600">
+                Project Directory
+            </button>
+        </div>
+
         <!-- Upload Mode -->
         <div class="space-y-4">
-            <div>
+            <!-- File Upload -->
+            <div id="fileUploadSection">
                 <label for="fileInput" class="block text-sm font-medium text-slate-700 mb-2">Upload JSONL File</label>
                 <input
                     type="file"
@@ -92,6 +110,35 @@
                         cursor-pointer"
                 >
                 <p class="text-xs text-slate-500 mt-2">Select a JSONL file containing conversation logs</p>
+            </div>
+
+            <!-- Directory Upload -->
+            <div id="dirUploadSection" class="hidden">
+                <label for="dirInput" class="block text-sm font-medium text-slate-700 mb-2">Upload Project Directory</label>
+                <input
+                    type="file"
+                    id="dirInput"
+                    webkitdirectory
+                    directory
+                    multiple
+                    class="block w-full text-sm text-slate-500
+                        file:mr-4 file:py-3 file:px-6
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-medium
+                        file:bg-purple-50 file:text-purple-700
+                        hover:file:bg-purple-100
+                        cursor-pointer"
+                >
+                <p class="text-xs text-slate-500 mt-2">Select a Claude Code project directory (e.g., ~/.claude/projects/...)</p>
+                <p class="text-xs text-amber-600 mt-1 font-medium">⏳ Processing may take a few seconds for large directories</p>
+            </div>
+
+            <!-- Session Selector (shown when directory is loaded) -->
+            <div id="sessionSelectorSection" class="hidden mt-4">
+                <label for="sessionSelect" class="block text-sm font-medium text-slate-700 mb-2">Select Session</label>
+                <select id="sessionSelect" class="block w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Choose a session...</option>
+                </select>
             </div>
         </div>
 
@@ -124,9 +171,17 @@
 let allLogs = [];
 let expandedTools = new Set();
 let expandedSubAgents = new Set();
+let projectSessions = {}; // Store parsed project sessions
 
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
+const dirInput = document.getElementById('dirInput');
+const fileModeBtn = document.getElementById('fileModeBtn');
+const dirModeBtn = document.getElementById('dirModeBtn');
+const fileUploadSection = document.getElementById('fileUploadSection');
+const dirUploadSection = document.getElementById('dirUploadSection');
+const sessionSelectorSection = document.getElementById('sessionSelectorSection');
+const sessionSelect = document.getElementById('sessionSelect');
 const errorState = document.getElementById('errorState');
 const logContainer = document.getElementById('logContainer');
 const placeholder = document.getElementById('placeholder');
@@ -136,6 +191,7 @@ fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    hideError();
     const reader = new FileReader();
     reader.onload = (e) => {
         const content = e.target.result;
@@ -152,7 +208,179 @@ fileInput.addEventListener('change', async (e) => {
     reader.readAsText(file);
 });
 
+dirInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    hideError();
+    try {
+        await parseProjectDirectory(files);
+    } catch (error) {
+        showError(`Failed to parse project directory: ${error.message}`);
+    }
+});
+
+sessionSelect.addEventListener('change', (e) => {
+    const sessionId = e.target.value;
+    if (!sessionId || !projectSessions[sessionId]) return;
+
+    try {
+        const mergedLogs = mergeSessionLogs(sessionId);
+        displayLogs(mergedLogs);
+    } catch (error) {
+        showError(`Failed to load session: ${error.message}`);
+    }
+});
+
+fileModeBtn.addEventListener('click', () => {
+    fileModeBtn.className = 'px-4 py-2 rounded-lg font-medium text-sm bg-blue-100 text-blue-700';
+    dirModeBtn.className = 'px-4 py-2 rounded-lg font-medium text-sm bg-slate-100 text-slate-600';
+    fileUploadSection.classList.remove('hidden');
+    dirUploadSection.classList.add('hidden');
+    sessionSelectorSection.classList.add('hidden');
+});
+
+dirModeBtn.addEventListener('click', () => {
+    dirModeBtn.className = 'px-4 py-2 rounded-lg font-medium text-sm bg-purple-100 text-purple-700';
+    fileModeBtn.className = 'px-4 py-2 rounded-lg font-medium text-sm bg-slate-100 text-slate-600';
+    fileUploadSection.classList.add('hidden');
+    dirUploadSection.classList.remove('hidden');
+});
+
 // Parsing Functions
+async function parseProjectDirectory(files) {
+    projectSessions = {};
+
+    // Collect all JSONL files (flatten directory structure)
+    const jsonlFiles = files.filter(f => f.name.endsWith('.jsonl'));
+
+    // Separate session files from agent files
+    const sessionFiles = jsonlFiles.filter(f => !f.name.startsWith('agent-'));
+    const agentFiles = jsonlFiles.filter(f => f.name.startsWith('agent-'));
+
+    // Parse all files and group by sessionId
+    const parsePromises = sessionFiles.map(async (sessionFile) => {
+        try {
+            // Read session file
+            const sessionContent = await readFileAsText(sessionFile);
+            const sessionLogs = parseNDJSON(sessionContent);
+
+            if (!sessionLogs.length) return null;
+
+            // Extract session metadata
+            const firstLog = sessionLogs[0];
+            // Try to get sessionId from log, fallback to filename (without .jsonl extension)
+            const sessionId = firstLog.sessionId || sessionFile.name.replace('.jsonl', '');
+
+            if (!sessionId) {
+                return null;
+            }
+
+            // Find the first valid timestamp from the logs
+            let timestamp = null;
+            for (const log of sessionLogs) {
+                if (log.timestamp) {
+                    timestamp = log.timestamp;
+                    break;
+                }
+            }
+
+            // If no timestamp found, use a very old date to sort to the end
+            if (!timestamp) {
+                timestamp = '1970-01-01T00:00:00.000Z';
+            }
+
+            // Find matching agent files by reading them and checking sessionId
+            const matchingAgentLogs = [];
+
+            for (const agentFile of agentFiles) {
+                const agentContent = await readFileAsText(agentFile);
+                const agentLogs = parseNDJSON(agentContent);
+
+                // Check if this agent file belongs to this session
+                if (agentLogs.length > 0 && agentLogs[0].sessionId === sessionId) {
+                    matchingAgentLogs.push(...agentLogs);
+                }
+            }
+
+            projectSessions[sessionId] = {
+                sessionId,
+                timestamp,
+                sessionLogs,
+                agentLogs: matchingAgentLogs,
+                allLogs: [...sessionLogs, ...matchingAgentLogs]
+            };
+
+            return { sessionId, timestamp };
+        } catch (error) {
+            return null;
+        }
+    });
+
+    const results = (await Promise.all(parsePromises)).filter(r => r !== null);
+
+    if (results.length === 0) {
+        const foundFiles = files.filter(f => f.name.endsWith('.jsonl')).length;
+        throw new Error(
+            `No valid sessions found in directory. ` +
+            `Found ${foundFiles} JSONL file(s).`
+        );
+    }
+
+    // Populate dropdown
+    populateSessionDropdown(results);
+}
+
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+    });
+}
+
+function populateSessionDropdown(sessions) {
+    // Sort sessions by timestamp (newest first)
+    sessions.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    sessionSelect.innerHTML = '<option value="">Choose a session...</option>';
+
+    sessions.forEach(({ sessionId, timestamp }) => {
+        const option = document.createElement('option');
+        option.value = sessionId;
+
+        let formattedDate;
+        if (timestamp === '1970-01-01T00:00:00.000Z') {
+            formattedDate = 'No timestamp';
+        } else {
+            const date = new Date(timestamp);
+            formattedDate = date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        option.textContent = `${sessionId.substring(0, 8)}... - ${formattedDate}`;
+        sessionSelect.appendChild(option);
+    });
+
+    sessionSelectorSection.classList.remove('hidden');
+}
+
+function mergeSessionLogs(sessionId) {
+    const session = projectSessions[sessionId];
+    if (!session) {
+        throw new Error('Session not found');
+    }
+
+    // Return all logs (session + agent logs merged)
+    return session.allLogs;
+}
+
 function parseNDJSON(content) {
     const lines = content.trim().split('\n');
     const logs = [];
@@ -165,7 +393,7 @@ function parseNDJSON(content) {
             if (parsed.type === 'file-history-snapshot') return;
             logs.push(parsed);
         } catch (error) {
-            console.error(`Skipping malformed JSON on line ${index + 1}:`, line, error);
+            // Skip malformed JSON
         }
     });
 
@@ -237,7 +465,7 @@ function buildDataStructures(logs) {
                                     toolData.agentId = match[1];
                                 }
                             } catch (e) {
-                                console.error('Error extracting agentId:', e);
+                                // Error extracting agentId
                             }
                         }
                     }
@@ -304,6 +532,7 @@ function createSessionHeader(logs) {
 
     header.innerHTML = `
         <h2 class="text-xl font-semibold text-slate-700 mb-3">
+            <span class="text-slate-500 text-sm mr-2">Session Id:</span>
             <span class="font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-sm">${sessionId}</span>
         </h2>
         <div class="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 font-mono">
@@ -319,6 +548,11 @@ function createSessionHeader(logs) {
 
 function createLogElement(log, toolUseMap, subAgentLogs, nestLevel) {
     const role = log.message?.role || log.type || 'system';
+
+    // Skip summary messages
+    if (role === 'summary' || log.type === 'summary') {
+        return null;
+    }
 
     // Skip rendering if this log is part of tool use/result pair
     if (log.message?.content) {
@@ -409,12 +643,17 @@ function createToolCard(toolData, toolUseMap, subAgentLogs, nestLevel) {
     const header = document.createElement('div');
     header.className = 'expandable-section p-4 bg-indigo-100 flex justify-between items-center';
 
-    const toolName = agentId ? `Task → agent ${agentId}` : toolUse.name;
+    // Extract sub-agent name from input if it's a Task tool
+    let displayName = toolUse.name;
+    if (agentId) {
+        const subAgentType = toolUse.input?.subagent_type || 'Unknown';
+        displayName = `Sub-agent: ${subAgentType}`;
+    }
 
     header.innerHTML = `
         <div class="flex items-center gap-2">
             <span class="text-lg">🔧</span>
-            <span class="font-semibold text-indigo-900">TOOL: ${toolName}</span>
+            <span class="font-semibold text-indigo-900">TOOL: ${displayName}</span>
         </div>
         <span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>
     `;
