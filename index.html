@@ -76,6 +76,24 @@
                 </div>
             </div>
         </div>
+
+        <!-- Info Section -->
+        <div class="mt-4 pt-4 border-t border-slate-200">
+            <ul class="text-sm text-slate-600 space-y-1">
+                <li class="flex items-start gap-2">
+                    <span class="text-blue-500 mt-0.5">•</span>
+                    <span>View single session files or upload a project directory to browse all sessions</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-blue-500 mt-0.5">•</span>
+                    <span>Full trace of tools and sub-agents called during execution</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <span class="text-blue-500 mt-0.5">•</span>
+                    <span>Tool use and results are merged together for easier reading</span>
+                </li>
+            </ul>
+        </div>
     </header>
 
     <!-- Input Section -->
@@ -167,6 +185,24 @@
 </div>
 
 <script>
+// Sample session data
+const SAMPLE_SESSION_DATA = `{"type":"file-history-snapshot","messageId":"ad43aece-e51d-485b-ba03-3b4ed650e1a9","snapshot":{"messageId":"ad43aece-e51d-485b-ba03-3b4ed650e1a9","trackedFileBackups":{},"timestamp":"2025-12-17T11:01:18.413Z"},"isSnapshotUpdate":false}
+{"parentUuid":null,"isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","type":"user","message":{"role":"user","content":"<command-message>x is running…</command-message>\\n<command-name>/x</command-name>\\n<command-args>do it</command-args>"},"uuid":"ad43aece-e51d-485b-ba03-3b4ed650e1a9","timestamp":"2025-12-17T11:01:18.410Z"}
+{"parentUuid":"ad43aece-e51d-485b-ba03-3b4ed650e1a9","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","type":"user","message":{"role":"user","content":[{"type":"text","text":"1. Call agent Y.\\n2. Print the current date and time.\\n\\nARGUMENTS: do it"}]},"isMeta":true,"uuid":"b1414c31-b44e-46db-9d54-28ec89f690b8","timestamp":"2025-12-17T11:01:18.410Z"}
+{"parentUuid":"b1414c31-b44e-46db-9d54-28ec89f690b8","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01QNcfp4SunZRff4hCw1BzqB","type":"message","role":"assistant","content":[{"type":"text","text":"I'll help you execute this task. Let me call agent Y first, then print the current date and time."}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3,"cache_creation_input_tokens":62845,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":62845,"ephemeral_1h_input_tokens":0},"output_tokens":5}},"requestId":"req_vrtx_011CWC9MU6LZhYiqSRahUG3b","type":"assistant","uuid":"ee82a98a-5490-440d-bbc0-f0964acbf5fd","timestamp":"2025-12-17T11:01:23.827Z"}
+{"parentUuid":"ee82a98a-5490-440d-bbc0-f0964acbf5fd","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01QNcfp4SunZRff4hCw1BzqB","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_vrtx_01BE5vcJN3hEy8MCdCex9fbB","name":"Task","input":{"subagent_type":"y","description":"Call agent Y","prompt":"Execute agent Y task with argument: do it"}}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3,"cache_creation_input_tokens":62845,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":62845,"ephemeral_1h_input_tokens":0},"output_tokens":5}},"requestId":"req_vrtx_011CWC9MU6LZhYiqSRahUG3b","type":"assistant","uuid":"68c17a21-2066-4364-b70c-3853440f3d22","timestamp":"2025-12-17T11:01:25.224Z"}
+{"parentUuid":"68c17a21-2066-4364-b70c-3853440f3d22","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01QNcfp4SunZRff4hCw1BzqB","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_vrtx_01CEgApP6NKyc5EQGp4bWAfk","name":"Bash","input":{"command":"date","description":"Print current date and time"}}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3,"cache_creation_input_tokens":62845,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":62845,"ephemeral_1h_input_tokens":0},"output_tokens":179}},"requestId":"req_vrtx_011CWC9MU6LZhYiqSRahUG3b","type":"assistant","uuid":"927d6634-923c-41dc-8ccf-fd27a7f8afb4","timestamp":"2025-12-17T11:01:25.638Z"}
+{"parentUuid":"927d6634-923c-41dc-8ccf-fd27a7f8afb4","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_vrtx_01CEgApP6NKyc5EQGp4bWAfk","type":"tool_result","content":"Wed Dec 17 16:31:29 IST 2025","is_error":false}]},"uuid":"9a648929-abe7-4240-a58e-659e39ea8030","timestamp":"2025-12-17T11:01:29.865Z","toolUseResult":{"stdout":"Wed Dec 17 16:31:29 IST 2025","stderr":"","interrupted":false,"isImage":false}}
+{"parentUuid":"9a648929-abe7-4240-a58e-659e39ea8030","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","slug":"sparkling-swinging-oasis","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_vrtx_01BE5vcJN3hEy8MCdCex9fbB","type":"tool_result","content":[{"type":"text","text":"The current date and time is: **Wed Dec 17 16:31:33 IST 2025**\\n\\nI've read agent Y's instructions, which ask me to print the current date and time (done above) and say bye.\\n\\nBye! 👋"},{"type":"text","text":"agentId: aec93c0 (for resuming to continue this agent's work if needed)"}]}]},"uuid":"a17591b2-9e04-45c5-9817-57a008a7ff04","timestamp":"2025-12-17T11:01:37.170Z","toolUseResult":{"status":"completed","prompt":"Execute agent Y task with argument: do it","agentId":"aec93c0","content":[{"type":"text","text":"The current date and time is: **Wed Dec 17 16:31:33 IST 2025**\\n\\nI've read agent Y's instructions, which ask me to print the current date and time (done above) and say bye.\\n\\nBye! 👋"}],"totalDurationMs":11487,"totalTokens":43419,"totalToolUseCount":2,"usage":{"input_tokens":175,"cache_creation_input_tokens":193,"cache_read_input_tokens":42989,"cache_creation":{"ephemeral_5m_input_tokens":193,"ephemeral_1h_input_tokens":0},"output_tokens":62}}}
+{"parentUuid":"a17591b2-9e04-45c5-9817-57a008a7ff04","isSidechain":false,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","slug":"sparkling-swinging-oasis","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01UCJtyYw4TyR2Rs2ZHfXTr8","type":"message","role":"assistant","content":[{"type":"text","text":"Agent Y has completed its task and says bye!\\n\\nCurrent date and time: **Wed Dec 17 16:31:29 IST 2025**"}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":47,"cache_creation_input_tokens":299,"cache_read_input_tokens":62845,"cache_creation":{"ephemeral_5m_input_tokens":299,"ephemeral_1h_input_tokens":0},"output_tokens":37}},"requestId":"req_vrtx_011CWC9NktuQxyRGzE7wgKoo","type":"assistant","uuid":"fa5ad6b3-f000-410b-8c52-130211b8b834","timestamp":"2025-12-17T11:01:41.010Z"}
+{"parentUuid":null,"isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","type":"user","message":{"role":"user","content":"Execute agent Y task with argument: do it"},"uuid":"c06f8adb-6a6b-4708-be14-446003f462cf","timestamp":"2025-12-17T11:01:25.701Z"}
+{"parentUuid":"c06f8adb-6a6b-4708-be14-446003f462cf","isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01HmuJaSEMn5qiu86aZaXMWu","type":"message","role":"assistant","content":[{"type":"text","text":"I'll print the current date and time, execute agent Y, and then say goodbye."}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3,"cache_creation_input_tokens":42989,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":42989,"ephemeral_1h_input_tokens":0},"output_tokens":3}},"requestId":"req_vrtx_011CWC9N1MXbye4CfNfTUucs","type":"assistant","uuid":"3d28e204-f055-4867-96c4-71d785915a9e","timestamp":"2025-12-17T11:01:31.022Z"}
+{"parentUuid":"3d28e204-f055-4867-96c4-71d785915a9e","isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01HmuJaSEMn5qiu86aZaXMWu","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_vrtx_013CttQqBfkmwCi616TmVBmU","name":"Bash","input":{"command":"date","description":"Print current date and time"}}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3,"cache_creation_input_tokens":42989,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":42989,"ephemeral_1h_input_tokens":0},"output_tokens":3}},"requestId":"req_vrtx_011CWC9N1MXbye4CfNfTUucs","type":"assistant","uuid":"ea9ede4f-e621-4254-a430-fa4657c08a1b","timestamp":"2025-12-17T11:01:31.523Z"}
+{"parentUuid":"ea9ede4f-e621-4254-a430-fa4657c08a1b","isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01HmuJaSEMn5qiu86aZaXMWu","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_vrtx_0122Yoskiw4cAodvPeQ2pcG1","name":"Read","input":{"file_path":"/Users/ram/workspace/scio/.claude/agents/y.md"}}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3,"cache_creation_input_tokens":42989,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":42989,"ephemeral_1h_input_tokens":0},"output_tokens":144}},"requestId":"req_vrtx_011CWC9N1MXbye4CfNfTUucs","type":"assistant","uuid":"edd283bb-c8b0-46e8-99bd-20d91222dea6","timestamp":"2025-12-17T11:01:32.212Z"}
+{"parentUuid":"edd283bb-c8b0-46e8-99bd-20d91222dea6","isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","slug":"sparkling-swinging-oasis","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_vrtx_0122Yoskiw4cAodvPeQ2pcG1","type":"tool_result","content":"     1→---\\n     2→name: y\\n     3→description: Agent Y\\n     4→model: sonnet\\n     5→color: blue\\n     6→---\\n     7→\\n     8→Print the current date and time.\\n     9→\\n    10→Say bye.\\n\\n<system-reminder>\\nWhenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.\\n</system-reminder>\\n"}]},"uuid":"09d67f21-c190-4857-ae6f-a43c16f65e41","timestamp":"2025-12-17T11:01:32.273Z","toolUseResult":{"type":"text","file":{"filePath":"/Users/ram/workspace/scio/.claude/agents/y.md","content":"---\\nname: y\\ndescription: Agent Y\\nmodel: sonnet\\ncolor: blue\\n---\\n\\nPrint the current date and time.\\n\\nSay bye.","numLines":10,"startLine":1,"totalLines":10}}}
+{"parentUuid":"09d67f21-c190-4857-ae6f-a43c16f65e41","isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","slug":"sparkling-swinging-oasis","type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_vrtx_013CttQqBfkmwCi616TmVBmU","type":"tool_result","content":"Wed Dec 17 16:31:33 IST 2025","is_error":false}]},"uuid":"d6444ece-339c-4a28-bf0a-9eafba10d2ca","timestamp":"2025-12-17T11:01:33.183Z","toolUseResult":{"stdout":"Wed Dec 17 16:31:33 IST 2025","stderr":"","interrupted":false,"isImage":false}}
+{"parentUuid":"d6444ece-339c-4a28-bf0a-9eafba10d2ca","isSidechain":true,"userType":"external","cwd":"/Users/ram/workspace/scio","sessionId":"1d63cb62-bfa6-40d7-8449-13c2078c961b","version":"2.0.71","gitBranch":"master","agentId":"aec93c0","slug":"sparkling-swinging-oasis","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_vrtx_01Nm1d1VDQnX7Rzdj9U6epYS","type":"message","role":"assistant","content":[{"type":"text","text":"The current date and time is: **Wed Dec 17 16:31:33 IST 2025**\\n\\nI've read agent Y's instructions, which ask me to print the current date and time (done above) and say bye.\\n\\nBye! 👋"}],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":175,"cache_creation_input_tokens":193,"cache_read_input_tokens":42989,"cache_creation":{"ephemeral_5m_input_tokens":193,"ephemeral_1h_input_tokens":0},"output_tokens":62}},"requestId":"req_vrtx_011CWC9NTm2KBUj8NZNWeiNE","type":"assistant","uuid":"67098763-9fe5-45b6-8e41-070677d0dba0","timestamp":"2025-12-17T11:01:37.135Z"}`;
+
 // Global state
 let allLogs = [];
 let expandedTools = new Set();
@@ -478,7 +514,7 @@ function buildDataStructures(logs) {
 }
 
 // Display Functions
-function displayLogs(logs) {
+function displayLogs(logs, isSample = false) {
     allLogs = logs;
     const { mainLogs, subAgentLogs, toolUseMap } = buildDataStructures(logs);
 
@@ -490,7 +526,7 @@ function displayLogs(logs) {
     sessionContainer.className = 'bg-white p-6 rounded-xl shadow-md border border-slate-200';
 
     // Add session header
-    const header = createSessionHeader(logs);
+    const header = createSessionHeader(logs, isSample);
     sessionContainer.appendChild(header);
 
     // Render main timeline
@@ -508,7 +544,7 @@ function displayLogs(logs) {
     logContainer.appendChild(sessionContainer);
 }
 
-function createSessionHeader(logs) {
+function createSessionHeader(logs, isSample = false) {
     const header = document.createElement('div');
     header.className = 'border-b border-slate-200 pb-4 mb-4';
 
@@ -530,10 +566,13 @@ function createSessionHeader(logs) {
         }
     });
 
+    const sampleBadge = isSample ? '<span class="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md">Sample Session</span>' : '';
+
     header.innerHTML = `
         <h2 class="text-xl font-semibold text-slate-700 mb-3">
             <span class="text-slate-500 text-sm mr-2">Session Id:</span>
             <span class="font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-sm">${sessionId}</span>
+            ${sampleBadge}
         </h2>
         <div class="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 font-mono">
             <div><span class="font-semibold text-slate-600">Input Tokens:</span> ${totalInputTokens.toLocaleString()}</div>
@@ -782,6 +821,21 @@ function showError(message) {
 function hideError() {
     errorState.classList.add('hidden');
 }
+
+// Load sample session
+function loadSampleSession() {
+    try {
+        const logs = parseNDJSON(SAMPLE_SESSION_DATA);
+        displayLogs(logs, true);
+    } catch (error) {
+        // Sample session failed to load
+    }
+}
+
+// Load sample session on page load
+window.addEventListener('DOMContentLoaded', () => {
+    loadSampleSession();
+});
 </script>
 
 </body>
