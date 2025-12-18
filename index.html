@@ -47,6 +47,10 @@
         .expandable-section {
             cursor: pointer;
             user-select: none;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .expandable-section:hover {
+            background-color: #e0e7ff;
         }
         .expand-icon {
             transition: transform 0.2s ease-in-out;
@@ -609,6 +613,13 @@ function createLogElement(log, toolUseMap, subAgentLogs, nestLevel) {
     }
 
     // Render regular message
+    const messageContent = formatMessageContent(log.message?.content);
+
+    // Skip rendering if content is empty
+    if (!messageContent || messageContent.trim() === '' || messageContent === '<p></p>') {
+        return null;
+    }
+
     const element = document.createElement('div');
     const indent = nestLevel * 20;
     element.style.marginLeft = `${indent}px`;
@@ -628,7 +639,7 @@ function createLogElement(log, toolUseMap, subAgentLogs, nestLevel) {
             <span class="text-slate-500 font-mono text-xs">${timestamp}</span>
         </div>
         <div class="message-content text-sm">
-            ${formatMessageContent(log.message?.content)}
+            ${messageContent}
         </div>
     `;
 
@@ -650,8 +661,8 @@ function createToolUseElements(log, toolUseMap, subAgentLogs, nestLevel) {
 
             const toolCard = createToolCard(toolData, toolUseMap, subAgentLogs, nestLevel);
             container.appendChild(toolCard);
-        } else if (item.type === 'text' && item.text.trim()) {
-            // Render assistant text before tool uses
+        } else if (item.type === 'text' && item.text && item.text.trim()) {
+            // Render assistant text before tool uses (only if not empty)
             const textElement = document.createElement('div');
             textElement.className = `p-4 rounded-lg border bg-slate-50 border-slate-200`;
             textElement.innerHTML = `
@@ -693,6 +704,7 @@ function createToolCard(toolData, toolUseMap, subAgentLogs, nestLevel) {
         <div class="flex items-center gap-2">
             <span class="text-lg">🔧</span>
             <span class="font-semibold text-indigo-900">TOOL: ${displayName}</span>
+            <span class="text-xs text-indigo-600 ml-2">(click to expand)</span>
         </div>
         <span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>
     `;
@@ -776,15 +788,19 @@ function createToolCard(toolData, toolUseMap, subAgentLogs, nestLevel) {
 
 function formatMessageContent(content) {
     if (typeof content === 'string') {
-        return `<p>${escapeHtml(content).replace(/\n/g, '<br>')}</p>`;
+        const trimmed = content.trim();
+        if (!trimmed) return '';
+        return `<p>${escapeHtml(trimmed).replace(/\n/g, '<br>')}</p>`;
     } else if (Array.isArray(content)) {
-        return content.map(item => {
-            if (item.type === 'text') {
+        const formatted = content.map(item => {
+            if (item.type === 'text' && item.text && item.text.trim()) {
                 return `<p>${escapeHtml(item.text).replace(/\n/g, '<br>')}</p>`;
             }
             return '';
         }).join('');
+        return formatted.trim();
     }
+    if (!content) return '';
     return '<pre>' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
 }
 
