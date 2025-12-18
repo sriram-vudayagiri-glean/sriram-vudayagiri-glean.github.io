@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Log Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .message-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            color: #1f2937;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+        .tool-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .tool-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .sub-agent-container {
+            border-left: 3px solid #3b82f6;
+            background: linear-gradient(to right, #eff6ff 0%, #ffffff 100%);
+        }
+        .expandable-section {
+            cursor: pointer;
+            user-select: none;
+        }
+        .expand-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+        .hidden-content {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+<div class="container mx-auto p-4 md:p-8 max-w-7xl">
+    <!-- Header -->
+    <header class="bg-white p-6 rounded-xl shadow-md mb-8 border border-slate-200">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900">Session Log Viewer</h1>
+                <p class="text-slate-500 mt-1">View conversation logs with sub-agent categorization and tool use grouping</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Input Section -->
+    <div class="bg-white p-6 rounded-xl shadow-md mb-8 border border-slate-200">
+        <h2 class="text-xl font-semibold text-slate-800 mb-4">Load Session Logs</h2>
+
+        <!-- Upload Mode -->
+        <div class="space-y-4">
+            <div>
+                <label for="fileInput" class="block text-sm font-medium text-slate-700 mb-2">Upload JSONL File</label>
+                <input
+                    type="file"
+                    id="fileInput"
+                    accept=".jsonl"
+                    class="block w-full text-sm text-slate-500
+                        file:mr-4 file:py-3 file:px-6
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-medium
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100
+                        cursor-pointer"
+                >
+                <p class="text-xs text-slate-500 mt-2">Select a JSONL file containing conversation logs</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div class="flex items-center gap-3">
+                <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-red-700 font-medium" id="errorMessage">Error loading logs</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main id="logContainer" class="space-y-6">
+        <!-- Initial placeholder -->
+        <div id="placeholder" class="text-center py-20 px-6 bg-white rounded-xl shadow-md border border-slate-200">
+            <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="mt-2 text-lg font-medium text-slate-900">No session loaded</h3>
+            <p class="mt-1 text-sm text-slate-500">Upload a JSONL file to view conversation logs</p>
+        </div>
+    </main>
+</div>
+
+<script>
+// Global state
+let allLogs = [];
+let expandedTools = new Set();
+let expandedSubAgents = new Set();
+
+// DOM Elements
+const fileInput = document.getElementById('fileInput');
+const errorState = document.getElementById('errorState');
+const logContainer = document.getElementById('logContainer');
+const placeholder = document.getElementById('placeholder');
+
+// Event Listeners
+fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const content = e.target.result;
+        try {
+            const logs = parseNDJSON(content);
+            displayLogs(logs);
+        } catch (error) {
+            showError(`Failed to parse JSONL file: ${error.message}`);
+        }
+    };
+    reader.onerror = () => {
+        showError('Failed to read the file');
+    };
+    reader.readAsText(file);
+});
+
+// Parsing Functions
+function parseNDJSON(content) {
+    const lines = content.trim().split('\n');
+    const logs = [];
+
+    lines.forEach((line, index) => {
+        if (line.trim() === '') return;
+        try {
+            const parsed = JSON.parse(line);
+            // Filter out file-history-snapshot entries
+            if (parsed.type === 'file-history-snapshot') return;
+            logs.push(parsed);
+        } catch (error) {
+            console.error(`Skipping malformed JSON on line ${index + 1}:`, line, error);
+        }
+    });
+
+    return logs;
+}
+
+// Data Structure Building
+function buildDataStructures(logs) {
+    // Separate main logs from sub-agents
+    const mainLogs = logs.filter(log => !log.isSidechain);
+    const subAgentLogs = {};
+
+    logs.filter(log => log.isSidechain).forEach(log => {
+        const agentId = log.agentId;
+        if (!subAgentLogs[agentId]) subAgentLogs[agentId] = [];
+        subAgentLogs[agentId].push(log);
+    });
+
+    // Build tool use to result mapping
+    const toolUseMap = new Map();
+
+    logs.forEach(log => {
+        if (log.message?.content) {
+            const content = Array.isArray(log.message.content) ? log.message.content : [log.message.content];
+
+            content.forEach(item => {
+                if (item.type === 'tool_use') {
+                    toolUseMap.set(item.id, {
+                        toolUse: item,
+                        toolUseLog: log,
+                        result: null,
+                        resultLog: null,
+                        agentId: null
+                    });
+                }
+            });
+        }
+    });
+
+    // Link tool results to tool uses
+    logs.forEach(log => {
+        if (log.message?.content) {
+            const content = Array.isArray(log.message.content) ? log.message.content : [log.message.content];
+
+            content.forEach(item => {
+                if (item.type === 'tool_result' && item.tool_use_id) {
+                    const toolData = toolUseMap.get(item.tool_use_id);
+                    if (toolData) {
+                        toolData.result = item;
+                        toolData.resultLog = log;
+
+                        // Extract agentId if this is a Task tool result
+                        if (toolData.toolUse.name === 'Task') {
+                            try {
+                                let textContent = '';
+
+                                // Handle both string and array content
+                                if (typeof item.content === 'string') {
+                                    textContent = item.content;
+                                } else if (Array.isArray(item.content)) {
+                                    textContent = item.content
+                                        .filter(c => c.type === 'text')
+                                        .map(c => c.text)
+                                        .join('\n');
+                                }
+
+                                const match = textContent.match(/agentId:\s*([a-f0-9]+)/);
+                                if (match) {
+                                    toolData.agentId = match[1];
+                                }
+                            } catch (e) {
+                                console.error('Error extracting agentId:', e);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+
+    return { mainLogs, subAgentLogs, toolUseMap };
+}
+
+// Display Functions
+function displayLogs(logs) {
+    allLogs = logs;
+    const { mainLogs, subAgentLogs, toolUseMap } = buildDataStructures(logs);
+
+    logContainer.innerHTML = '';
+    placeholder.style.display = 'none';
+
+    // Create session container
+    const sessionContainer = document.createElement('div');
+    sessionContainer.className = 'bg-white p-6 rounded-xl shadow-md border border-slate-200';
+
+    // Add session header
+    const header = createSessionHeader(logs);
+    sessionContainer.appendChild(header);
+
+    // Render main timeline
+    const timeline = document.createElement('div');
+    timeline.className = 'space-y-4 mt-6';
+
+    mainLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    mainLogs.forEach(log => {
+        const logElement = createLogElement(log, toolUseMap, subAgentLogs, 0);
+        if (logElement) timeline.appendChild(logElement);
+    });
+
+    sessionContainer.appendChild(timeline);
+    logContainer.appendChild(sessionContainer);
+}
+
+function createSessionHeader(logs) {
+    const header = document.createElement('div');
+    header.className = 'border-b border-slate-200 pb-4 mb-4';
+
+    const sessionInfo = logs[0] || {};
+    const sessionId = sessionInfo.sessionId || 'Unknown';
+
+    // Calculate metadata
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let totalCacheCreation = 0;
+    let totalCacheRead = 0;
+
+    logs.forEach(log => {
+        if (log.message?.usage) {
+            totalInputTokens += log.message.usage.input_tokens || 0;
+            totalOutputTokens += log.message.usage.output_tokens || 0;
+            totalCacheCreation += log.message.usage.cache_creation_input_tokens || 0;
+            totalCacheRead += log.message.usage.cache_read_input_tokens || 0;
+        }
+    });
+
+    header.innerHTML = `
+        <h2 class="text-xl font-semibold text-slate-700 mb-3">
+            <span class="font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-sm">${sessionId}</span>
+        </h2>
+        <div class="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500 font-mono">
+            <div><span class="font-semibold text-slate-600">Input Tokens:</span> ${totalInputTokens.toLocaleString()}</div>
+            <div><span class="font-semibold text-slate-600">Output Tokens:</span> ${totalOutputTokens.toLocaleString()}</div>
+            ${totalCacheCreation > 0 ? `<div><span class="font-semibold text-slate-600">Cache Creation:</span> ${totalCacheCreation.toLocaleString()}</div>` : ''}
+            ${totalCacheRead > 0 ? `<div><span class="font-semibold text-slate-600">Cache Read:</span> ${totalCacheRead.toLocaleString()}</div>` : ''}
+        </div>
+    `;
+
+    return header;
+}
+
+function createLogElement(log, toolUseMap, subAgentLogs, nestLevel) {
+    const role = log.message?.role || log.type || 'system';
+
+    // Skip rendering if this log is part of tool use/result pair
+    if (log.message?.content) {
+        const content = Array.isArray(log.message.content) ? log.message.content : [];
+        const hasToolUse = content.some(item => item.type === 'tool_use');
+        const hasToolResult = content.some(item => item.type === 'tool_result');
+
+        if (hasToolUse) {
+            // Render tool use cards
+            return createToolUseElements(log, toolUseMap, subAgentLogs, nestLevel);
+        } else if (hasToolResult && role === 'user') {
+            // Skip tool result logs (they're rendered as part of tool cards)
+            return null;
+        }
+    }
+
+    // Render regular message
+    const element = document.createElement('div');
+    const indent = nestLevel * 20;
+    element.style.marginLeft = `${indent}px`;
+
+    const isUser = role.toLowerCase() === 'user';
+    const bgColor = isUser ? 'bg-blue-50' : 'bg-slate-50';
+    const borderColor = isUser ? 'border-blue-200' : 'border-slate-200';
+    const roleColor = isUser ? 'bg-blue-200 text-blue-800' : 'bg-slate-200 text-slate-800';
+
+    element.className = `p-4 rounded-lg border ${bgColor} ${borderColor}`;
+
+    const timestamp = new Date(log.timestamp).toLocaleString();
+
+    element.innerHTML = `
+        <div class="flex justify-between items-center text-sm mb-3">
+            <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs uppercase ${roleColor}">${role}</span>
+            <span class="text-slate-500 font-mono text-xs">${timestamp}</span>
+        </div>
+        <div class="message-content text-sm">
+            ${formatMessageContent(log.message?.content)}
+        </div>
+    `;
+
+    return element;
+}
+
+function createToolUseElements(log, toolUseMap, subAgentLogs, nestLevel) {
+    const container = document.createElement('div');
+    container.className = 'space-y-2';
+    const indent = nestLevel * 20;
+    container.style.marginLeft = `${indent}px`;
+
+    const content = Array.isArray(log.message.content) ? log.message.content : [];
+
+    content.forEach(item => {
+        if (item.type === 'tool_use') {
+            const toolData = toolUseMap.get(item.id);
+            if (!toolData) return;
+
+            const toolCard = createToolCard(toolData, toolUseMap, subAgentLogs, nestLevel);
+            container.appendChild(toolCard);
+        } else if (item.type === 'text' && item.text.trim()) {
+            // Render assistant text before tool uses
+            const textElement = document.createElement('div');
+            textElement.className = `p-4 rounded-lg border bg-slate-50 border-slate-200`;
+            textElement.innerHTML = `
+                <div class="flex justify-between items-center text-sm mb-3">
+                    <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs uppercase bg-slate-200 text-slate-800">ASSISTANT</span>
+                    <span class="text-slate-500 font-mono text-xs">${new Date(log.timestamp).toLocaleString()}</span>
+                </div>
+                <div class="message-content text-sm">
+                    <p>${escapeHtml(item.text).replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+            container.appendChild(textElement);
+        }
+    });
+
+    return container.children.length > 0 ? container : null;
+}
+
+function createToolCard(toolData, toolUseMap, subAgentLogs, nestLevel) {
+    const { toolUse, result, agentId } = toolData;
+    const toolId = toolUse.id;
+    const isExpanded = expandedTools.has(toolId);
+
+    const card = document.createElement('div');
+    card.className = 'tool-card border-2 border-indigo-200 rounded-lg bg-indigo-50 overflow-hidden';
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'expandable-section p-4 bg-indigo-100 flex justify-between items-center';
+
+    const toolName = agentId ? `Task → agent ${agentId}` : toolUse.name;
+
+    header.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="text-lg">🔧</span>
+            <span class="font-semibold text-indigo-900">TOOL: ${toolName}</span>
+        </div>
+        <span class="expand-icon ${isExpanded ? 'expanded' : ''}">▶</span>
+    `;
+
+    header.addEventListener('click', () => {
+        if (expandedTools.has(toolId)) {
+            expandedTools.delete(toolId);
+            outputSection.classList.add('hidden-content');
+            header.querySelector('.expand-icon').classList.remove('expanded');
+        } else {
+            expandedTools.add(toolId);
+            outputSection.classList.remove('hidden-content');
+            header.querySelector('.expand-icon').classList.add('expanded');
+        }
+    });
+
+    card.appendChild(header);
+
+    // Input section (always visible)
+    const inputSection = document.createElement('div');
+    inputSection.className = 'p-4 border-t border-indigo-200';
+    inputSection.innerHTML = `
+        <div class="text-xs font-semibold text-indigo-700 mb-2">Input:</div>
+        <pre class="text-xs bg-white p-3 rounded border border-indigo-200 overflow-x-auto">${escapeHtml(JSON.stringify(toolUse.input, null, 2))}</pre>
+    `;
+    card.appendChild(inputSection);
+
+    // Output section (expandable)
+    const outputSection = document.createElement('div');
+    outputSection.className = isExpanded ? '' : 'hidden-content';
+
+    // Sub-agent section (if applicable)
+    if (agentId && subAgentLogs[agentId]) {
+        const subAgentContainer = document.createElement('div');
+        subAgentContainer.className = 'sub-agent-container p-4 mt-2 rounded-lg';
+
+        const subAgentHeader = document.createElement('div');
+        subAgentHeader.className = 'font-semibold text-blue-700 mb-3 text-sm flex items-center gap-2';
+        subAgentHeader.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            <span>SUB-AGENT EXECUTION: ${agentId}</span>
+        `;
+        subAgentContainer.appendChild(subAgentHeader);
+
+        const subLogsContainer = document.createElement('div');
+        subLogsContainer.className = 'space-y-3';
+
+        const subLogs = subAgentLogs[agentId].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        subLogs.forEach(subLog => {
+            // Render sub-agent logs without nesting indent (they're already in a bordered container)
+            const subElement = createLogElement(subLog, toolUseMap, {}, 0);
+            if (subElement) {
+                // Remove any margin-left that was added
+                subElement.style.marginLeft = '0px';
+                subLogsContainer.appendChild(subElement);
+            }
+        });
+
+        subAgentContainer.appendChild(subLogsContainer);
+        outputSection.appendChild(subAgentContainer);
+    }
+
+    // Tool result
+    if (result) {
+        const resultSection = document.createElement('div');
+        resultSection.className = 'p-4 border-t border-indigo-200';
+        resultSection.innerHTML = `
+            <div class="text-xs font-semibold text-emerald-700 mb-2">Output:</div>
+            <div class="text-sm bg-white p-3 rounded border border-emerald-200">${formatToolResult(result)}</div>
+        `;
+        outputSection.appendChild(resultSection);
+    }
+
+    card.appendChild(outputSection);
+
+    return card;
+}
+
+function formatMessageContent(content) {
+    if (typeof content === 'string') {
+        return `<p>${escapeHtml(content).replace(/\n/g, '<br>')}</p>`;
+    } else if (Array.isArray(content)) {
+        return content.map(item => {
+            if (item.type === 'text') {
+                return `<p>${escapeHtml(item.text).replace(/\n/g, '<br>')}</p>`;
+            }
+            return '';
+        }).join('');
+    }
+    return '<pre>' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+}
+
+function formatToolResult(result) {
+    if (typeof result.content === 'string') {
+        return escapeHtml(result.content).replace(/\n/g, '<br>');
+    } else if (Array.isArray(result.content)) {
+        return result.content.map(item => {
+            if (item.type === 'text') {
+                return escapeHtml(item.text).replace(/\n/g, '<br>');
+            }
+            return '';
+        }).join('');
+    }
+    return escapeHtml(JSON.stringify(result.content, null, 2));
+}
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// UI State Functions
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    errorState.classList.remove('hidden');
+}
+
+function hideError() {
+    errorState.classList.add('hidden');
+}
+</script>
+
+</body>
+</html>
