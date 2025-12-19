@@ -625,9 +625,9 @@ function createLogElement(log, toolUseMap, subAgentLogs, nestLevel) {
     element.style.marginLeft = `${indent}px`;
 
     const isUser = role.toLowerCase() === 'user';
-    const bgColor = isUser ? 'bg-blue-50' : 'bg-slate-50';
-    const borderColor = isUser ? 'border-blue-200' : 'border-slate-200';
-    const roleColor = isUser ? 'bg-blue-200 text-blue-800' : 'bg-slate-200 text-slate-800';
+    const bgColor = isUser ? 'bg-blue-50' : 'bg-violet-100';
+    const borderColor = isUser ? 'border-blue-200' : 'border-violet-500';
+    const roleColor = isUser ? 'bg-blue-200 text-blue-800' : 'bg-violet-600 text-white';
 
     element.className = `p-4 rounded-lg border ${bgColor} ${borderColor}`;
 
@@ -664,10 +664,10 @@ function createToolUseElements(log, toolUseMap, subAgentLogs, nestLevel) {
         } else if (item.type === 'text' && item.text && item.text.trim()) {
             // Render assistant text before tool uses (only if not empty)
             const textElement = document.createElement('div');
-            textElement.className = `p-4 rounded-lg border bg-slate-50 border-slate-200`;
+            textElement.className = `p-4 rounded-lg border bg-violet-100 border-violet-500`;
             textElement.innerHTML = `
                 <div class="flex justify-between items-center text-sm mb-3">
-                    <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs uppercase bg-slate-200 text-slate-800">ASSISTANT</span>
+                    <span class="px-2.5 py-0.5 rounded-full font-semibold text-xs uppercase bg-violet-600 text-white">ASSISTANT</span>
                     <span class="text-slate-500 font-mono text-xs">${new Date(log.timestamp).toLocaleString()}</span>
                 </div>
                 <div class="message-content text-sm">
