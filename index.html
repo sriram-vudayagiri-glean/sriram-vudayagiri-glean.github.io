@@ -537,12 +537,62 @@ function displayLogs(logs, isSample = false) {
     const timeline = document.createElement('div');
     timeline.className = 'space-y-4 mt-6';
 
-    mainLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    // If we have main logs, render them normally
+    if (mainLogs.length > 0) {
+        mainLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-    mainLogs.forEach(log => {
-        const logElement = createLogElement(log, toolUseMap, subAgentLogs, 0);
-        if (logElement) timeline.appendChild(logElement);
-    });
+        mainLogs.forEach(log => {
+            const logElement = createLogElement(log, toolUseMap, subAgentLogs, 0);
+            if (logElement) timeline.appendChild(logElement);
+        });
+    } else if (Object.keys(subAgentLogs).length > 0) {
+        // If we have only agent logs (no main logs), render them directly
+        // Flatten all agent logs into a single timeline
+        const allAgentLogs = [];
+        Object.values(subAgentLogs).forEach(agentLogArray => {
+            allAgentLogs.push(...agentLogArray);
+        });
+
+        allAgentLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        // Group by agentId to show each agent's conversation
+        const agentGroups = {};
+        allAgentLogs.forEach(log => {
+            const agentId = log.agentId || 'unknown';
+            if (!agentGroups[agentId]) agentGroups[agentId] = [];
+            agentGroups[agentId].push(log);
+        });
+
+        // Render each agent group
+        Object.entries(agentGroups).forEach(([agentId, agentLogs]) => {
+            const agentContainer = document.createElement('div');
+            agentContainer.className = 'sub-agent-container p-4 rounded-lg mb-4';
+
+            const agentHeader = document.createElement('div');
+            agentHeader.className = 'font-semibold text-blue-700 mb-3 text-sm flex items-center gap-2';
+            agentHeader.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <span>AGENT: ${agentId}</span>
+            `;
+            agentContainer.appendChild(agentHeader);
+
+            const agentLogsContainer = document.createElement('div');
+            agentLogsContainer.className = 'space-y-3';
+
+            agentLogs.forEach(log => {
+                const logElement = createLogElement(log, toolUseMap, {}, 0);
+                if (logElement) {
+                    logElement.style.marginLeft = '0px';
+                    agentLogsContainer.appendChild(logElement);
+                }
+            });
+
+            agentContainer.appendChild(agentLogsContainer);
+            timeline.appendChild(agentContainer);
+        });
+    }
 
     sessionContainer.appendChild(timeline);
     logContainer.appendChild(sessionContainer);
